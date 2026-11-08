@@ -32,6 +32,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 ## クレジット・権利
 
 - 美咲フォント: Copyright (C) 2002-2021 Num Kadoma。自由に利用・複製・再配布できるフリーソフトウエアです。
+- PixelMplus: Copyright (C) 2002-2013 M+ FONTS PROJECT。M+ FONT LICENSE（ソード・オブ・ジーンの全滅とクリアの画面の絵の文字で使用）。
 - ScummVM: ワールド・オブ・ジーンの日本語版は、日本語の表示を足した ScummVM の非公式ビルド（GNU GPL v3 以降、ソースは https://github.com/higesho/scummvm/tree/ja-xeen ）で動きます。
 - ScummVM: ソード・オブ・ジーンの日本語版も、同じ非公式ビルド（ソースは https://github.com/higesho/scummvm/tree/ja-swords ）で動きます。
 - 東雲フォント: パブリックドメインのビットマップフォント（第7作・第8作・第9作で使用）。
