@@ -19,7 +19,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 | ソード・オブ・ジーン（Might and Magic: Swords of Xeen） | 公開中 | [SwordsOfXeen_JP.zip](https://github.com/higesho/mm-ja/releases/tag/swords-v1.0) |
 | マイト・アンド・マジック6（Might and Magic VI: The Mandate of Heaven） | 公開中 | [MightAndMagic6_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm6-v1.0) |
 | マイト・アンド・マジック7（Might and Magic VII: For Blood and Honor） | 公開中 | [MightAndMagic7_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm7-v1.0) |
-| マイト・アンド・マジック8（Might and Magic VIII: Day of the Destroyer） | 公開中 | [MightAndMagic8_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm8-v1.0) |
+| マイト・アンド・マジック8（Might and Magic VIII: Day of the Destroyer） | 公開中 | [MightAndMagic8_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm8-v1.1) |
 | マイト・アンド・マジック9（Might and Magic IX） | 公開中 | [MightAndMagic9_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm9-v1.0) |
 
 入れ方と外し方は、サイトの各作品のページをご覧ください。

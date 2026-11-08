@@ -39,7 +39,7 @@
 人々との会話、うわさ話、クエストの記録と自動メモ、歴史の書や巻物、品物・呪文・スキル・職業の説明、マップごとの案内、
 品物・怪物・人物・地名・店の名前、画面の文言まで、ゲームの中の文章を日本語にしています。
 ゲームのフォルダにファイルを置くだけで日本語になり、外せば英語に戻ります。</p>
-<p><a class="dl" href="https://github.com/higesho/mm-ja/releases/tag/mm8-v1.0">ダウンロード（GitHub）</a></p>
+<p><a class="dl" href="https://github.com/higesho/mm-ja/releases/tag/mm8-v1.1">ダウンロード（GitHub）</a></p>
 </section>
 
 <div class="text">
@@ -70,6 +70,18 @@
 </ol>
 <p>ゲームのファイルは書き換えません。</p>
 
+<h2>GrayFace MM8 Patch といっしょに使うとき</h2>
+<p><a href="https://grayface.github.io/mm/">GrayFace MM8 Patch</a>（非公式の改良パッチ）を当てた状態でも、同じ日本語化パッチで日本語になります。v2.5.7 で確かめています。</p>
+<ol>
+<li>GrayFace MM8 Patch を、その説明どおりにゲームのフォルダへ入れます。</li>
+<li>上の「入れ方」と同じように、<code>dinput.dll</code> と <code>jp</code> フォルダをゲームのフォルダにコピーします。</li>
+<li>いつもどおり GOG Galaxy やショートカットから起動します（GrayFace MM8 Patch を入れると、<code>MM8.exe</code> がそのパッチのものに置き換わり、それが起動します）。</li>
+</ol>
+<ul>
+<li>1 と 2 はどちらを先にしてもかまいません。あとから GrayFace MM8 Patch を入れたり外したりしても、日本語化パッチを入れ直す必要はありません。セーブデータもそのまま使えます。</li>
+<li>GrayFace MM8 Patch が足す文言（倍速の表示、攻撃スペルの案内、呪文の残り時間など）も日本語で出ます。<code>mm8lang.ini</code> を自分で書き換えている場合は、その文言がそのまま使われます。</li>
+</ul>
+
 <h2>外し方</h2>
 <ul>
 <li><code>dinput.dll</code> と <code>jp</code> フォルダを消すと、英語版に戻ります。セーブデータはそのまま使えます。</li>
@@ -81,7 +93,7 @@
 <li>ボタンや見出しなど、絵として描かれている文字（New Game、Stats、Skills など）と、スタッフロールは英語のままです。</li>
 <li>品物の名前は「腕力のロングソード」のように、付いている力を前に置いて表示します。</li>
 <li>キャラクターの名前とセーブデータの名前は英字で入力します。</li>
-<li>GOG.com 版の MM8-Rel.exe 専用です。版が違う場合は日本語化を行わず、英語のまま動きます。</li>
+<li>GOG.com 版のゲーム本体と、GrayFace MM8 Patch を当てたときのゲーム本体に対応しています。それ以外の版では日本語化を行わず、英語のまま動きます。</li>
 <li>ほかの改造パッチのうち、<code>dinput.dll</code> を置き換えるものとは同時に使えません。</li>
 </ul>
 
