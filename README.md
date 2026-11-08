@@ -18,7 +18,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 | ワールド・オブ・ジーン（Might and Magic IV: Clouds of Xeen ／ V: Darkside of Xeen） | 予定 | — |
 | ソード・オブ・ジーン（Might and Magic: Swords of Xeen） | 予定 | — |
 | マイト・アンド・マジック6（Might and Magic VI: The Mandate of Heaven） | 公開中 | [MightAndMagic6_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm6-v1.0) |
-| マイト・アンド・マジック7（Might and Magic VII: For Blood and Honor） | 予定 | — |
+| マイト・アンド・マジック7（Might and Magic VII: For Blood and Honor） | 公開中 | [MightAndMagic7_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm7-v1.0) |
 | マイト・アンド・マジック8（Might and Magic VIII: Day of the Destroyer） | 公開中 | [MightAndMagic8_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm8-v1.0) |
 | マイト・アンド・マジック9（Might and Magic IX） | 予定 | — |
 
@@ -32,5 +32,5 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 ## クレジット・権利
 
 - 美咲フォント: Copyright (C) 2002-2021 Num Kadoma。自由に利用・複製・再配布できるフリーソフトウエアです。
-- 東雲フォント: パブリックドメインのビットマップフォント（第8作で使用）。
+- 東雲フォント: パブリックドメインのビットマップフォント（第7作・第8作で使用）。
 - Might and Magic は Ubisoft Entertainment の商標です。ゲームの画像・文章の権利は原作の権利者にあります。
