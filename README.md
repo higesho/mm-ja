@@ -16,7 +16,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 | マイト・アンド・マジック2（Might and Magic II: Gates to Another World） | 公開中 | [MightAndMagic2_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm2-v1.0) |
 | マイト・アンド・マジック3（Might and Magic III: Isles of Terra） | 公開中 | [MightAndMagic3_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm3-v1.0) |
 | ワールド・オブ・ジーン（Might and Magic IV: Clouds of Xeen ／ V: Darkside of Xeen） | 公開中 | [WorldOfXeen_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm45-v1.0) |
-| ソード・オブ・ジーン（Might and Magic: Swords of Xeen） | 予定 | — |
+| ソード・オブ・ジーン（Might and Magic: Swords of Xeen） | 公開中 | [SwordsOfXeen_JP.zip](https://github.com/higesho/mm-ja/releases/tag/swords-v1.0) |
 | マイト・アンド・マジック6（Might and Magic VI: The Mandate of Heaven） | 公開中 | [MightAndMagic6_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm6-v1.0) |
 | マイト・アンド・マジック7（Might and Magic VII: For Blood and Honor） | 公開中 | [MightAndMagic7_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm7-v1.0) |
 | マイト・アンド・マジック8（Might and Magic VIII: Day of the Destroyer） | 公開中 | [MightAndMagic8_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm8-v1.0) |
@@ -32,7 +32,9 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 ## クレジット・権利
 
 - 美咲フォント: Copyright (C) 2002-2021 Num Kadoma。自由に利用・複製・再配布できるフリーソフトウエアです。
+- PixelMplus: Copyright (C) 2002-2013 M+ FONTS PROJECT。M+ FONT LICENSE（ソード・オブ・ジーンの全滅とクリアの画面の絵の文字で使用）。
 - ScummVM: ワールド・オブ・ジーンの日本語版は、日本語の表示を足した ScummVM の非公式ビルド（GNU GPL v3 以降、ソースは https://github.com/higesho/scummvm/tree/ja-xeen ）で動きます。
+- ScummVM: ソード・オブ・ジーンの日本語版も、同じ非公式ビルド（ソースは https://github.com/higesho/scummvm/tree/ja-swords ）で動きます。
 - 東雲フォント: パブリックドメインのビットマップフォント（第7作・第8作・第9作で使用）。
 - Noto Serif JP: SIL Open Font License 1.1（第9作の画像の文字に使用）。
 - Might and Magic は Ubisoft Entertainment の商標です。ゲームの画像・文章の権利は原作の権利者にあります。
