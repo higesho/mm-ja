@@ -17,7 +17,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 | マイト・アンド・マジック3（Might and Magic III: Isles of Terra） | 公開中 | [MightAndMagic3_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm3-v1.0) |
 | ワールド・オブ・ジーン（Might and Magic IV: Clouds of Xeen ／ V: Darkside of Xeen） | 公開中 | [WorldOfXeen_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm45-v1.0) |
 | ソード・オブ・ジーン（Might and Magic: Swords of Xeen） | 予定 | — |
-| マイト・アンド・マジック6（Might and Magic VI: The Mandate of Heaven） | 予定 | — |
+| マイト・アンド・マジック6（Might and Magic VI: The Mandate of Heaven） | 公開中 | [MightAndMagic6_JP.zip](https://github.com/higesho/mm-ja/releases/tag/mm6-v1.0) |
 | マイト・アンド・マジック7（Might and Magic VII: For Blood and Honor） | 予定 | — |
 | マイト・アンド・マジック8（Might and Magic VIII: Day of the Destroyer） | 予定 | — |
 | マイト・アンド・マジック9（Might and Magic IX） | 予定 | — |
