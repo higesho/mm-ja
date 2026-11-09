@@ -38,7 +38,7 @@
 <p class="tag">GOG.com 版の「Might and Magic - Book I」（DOS 版）を日本語で遊べるようにする、非公式のファンメイドパッチです。
 メニューやキャラクター作成から、宿・店・神殿・訓練所でのやりとり、町や城・洞窟・野外の出来事、戦闘、品物と怪物の名前まで、ゲームの中の文章を日本語にしています。
 ゲームのフォルダにファイルを置くだけで日本語になり、外せば英語に戻ります。</p>
-<p><a class="dl" href="https://github.com/higesho/mm-ja/releases/tag/mm1-v1.0">ダウンロード（GitHub）</a></p>
+<p><a class="dl" href="https://github.com/higesho/mm-ja/releases/tag/mm1-v1.1">ダウンロード（GitHub）</a></p>
 </section>
 
 <div class="text">
@@ -66,7 +66,7 @@ GOG.com で販売されているのは DOS 版です。</p>
 <h2>入れ方</h2>
 <ol>
 <li>ダウンロードした <code>MightAndMagic1_JP.zip</code> を展開します。</li>
-<li>中の <code>MMJP.COM</code> と <code>dosboxMM1_single.conf</code> を、ゲームのフォルダ（<code>MM.EXE</code> があるフォルダ）にコピーします。<code>dosboxMM1_single.conf</code> は上書きしてください。</li>
+<li>中の <code>MMJP.COM</code> と <code>dosboxMM1_single.conf</code> を、ゲームのフォルダ（<code>MM.EXE</code> があるフォルダ）にコピーします。<code>dosboxMM1_single.conf</code> は上書きしてください。<code>DOSBOX</code> フォルダも、ゲームのフォルダの中の <code>DOSBOX</code> フォルダにコピーします（<code>opengl32.dll</code> と <code>ultima_ja.ini</code> が増えます）。</li>
 <li>いつもどおり GOG Galaxy やショートカットから起動します。</li>
 </ol>
 <p>ゲームのファイルは書き換えません。</p>
@@ -74,8 +74,16 @@ GOG.com で販売されているのは DOS 版です。</p>
 <h2>外し方</h2>
 <ul>
 <li><code>MMJP.COM</code> を消し、GOG Galaxy の「ファイルの検証/修復」で <code>dosboxMM1_single.conf</code> を元に戻します。</li>
+<li><code>DOSBOX</code> フォルダに増えた <code>opengl32.dll</code> と <code>ultima_ja.ini</code> も消します。</li>
 </ul>
 <p>セーブデータ（名簿）は英語版と共通です。日本語版と英語版を行き来しても、続きから遊べます。</p>
+
+<h2>窓と字の形</h2>
+<ul>
+<li>ゲームは窓で起動します。窓のふちをドラッグすると、大きさを自由に変えられます。最大化もでき、変えた大きさは次の起動でも使われます。Alt＋Enter で全画面に切り替えられます。</li>
+<li>日本語の字の形は、東雲フォント（12ドット）と美咲フォント（8ドット）から選べます。最初は東雲フォントで、ゲーム中に F11 キーを押すと切り替わります。</li>
+<li>設定は <code>DOSBOX</code> フォルダの <code>ultima_ja.ini</code> で変えられます。</li>
+</ul>
 
 <h2>遊ぶときの注意</h2>
 <ul>
@@ -94,6 +102,7 @@ GOG.com で販売されているのは DOS 版です。</p>
 <h2>クレジット</h2>
 <ul>
 <li>日本語の表示に美咲フォント（Copyright &copy; 2002-2021 Num Kadoma）を使っています。美咲フォントは、自由に利用・複製・再配布できるフリーソフトウエアです。</li>
+<li>日本語の表示に東雲フォント（/efont/）も使っています。東雲フォントはパブリックドメインで提供されているフォントです。</li>
 <li>このパッチの使用は自己責任でお願いします。</li>
 </ul>
 </div>
