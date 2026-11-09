@@ -7,6 +7,7 @@ GOG.com で販売されている版を対象に、第1部から順に日本語�
 - サイト（作品の紹介・入れ方）: https://higesho.github.io/mm-ja/
 - ダウンロード: [リリース](https://github.com/higesho/mm-ja/releases)
 - ウルティマ シリーズの日本語化: https://higesho.github.io/ultima-ja/
+- D&D シリーズの日本語化: https://higesho.github.io/dnd-ja/
 
 ## 作品一覧
 
