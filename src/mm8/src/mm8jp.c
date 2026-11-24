@@ -2,6 +2,8 @@
  *
  * - DirectInputCreateA は本物の system32\dinput.dll へ渡す
  * - 読み込まれたときに MM8 本体へ手を入れる（レジストリ・文字描画）
+ * - 試験用の部分（記録 mm8jp.log、MM8JP_TEST での操作の受け付け）は、
+ *   build.bat test で作る試験版（/DMM8JP_TEST）にだけ入る
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -10,7 +12,8 @@
 #include <stdlib.h>
 #include "mm8jp.h"
 
-/* ---- 記録 ---- */
+/* ---- 記録（試験版だけ。配布版では何もしない） ---- */
+#ifdef MM8JP_TEST
 static FILE *g_log;
 void jlog(const char *fmt, ...)
 {
@@ -22,6 +25,7 @@ void jlog(const char *fmt, ...)
     fputc('\n', g_log);
     fflush(g_log);
 }
+#endif
 
 /* ---- 本物の dinput.dll ---- */
 typedef HRESULT (WINAPI *PFN_DICreateA)(HINSTANCE, DWORD, void **, void *);
@@ -37,15 +41,19 @@ static void load_real_dinput(void)
     if (h) real_DirectInputCreateA = (PFN_DICreateA)GetProcAddress(h, "DirectInputCreateA");
 }
 
+#ifdef MM8JP_TEST
 int g_test_mode;
+#endif
 HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD ver, void **out, void *outer)
 {
+#ifdef MM8JP_TEST
     if (g_test_mode) {
         /* 試験時は DirectInput を使わせない（前面でなくても送ったメッセージで動くように） */
         jlog("test: DirectInputCreateA を断る");
         if (out) *out = NULL;
         return E_FAIL;
     }
+#endif
     if (!real_DirectInputCreateA) load_real_dinput();
     if (!real_DirectInputCreateA) return E_FAIL;
     return real_DirectInputCreateA(hinst, ver, out, outer);
@@ -186,7 +194,9 @@ static DWORD g_winmain;
 static void late_init(void)
 {
     patch_bytes(g_winmain, g_winmain_head, 5);
+#ifdef MM8JP_TEST
     if (g_test_mode) test_late_init();
+#endif
     text_late_init();
 }
 static __declspec(naked) void J_WinMainOnce(void)
@@ -204,6 +214,7 @@ BOOL WINAPI DllMain(HINSTANCE hi, DWORD reason, LPVOID rsv)
     if (reason == DLL_PROCESS_ATTACH) {
         char path[MAX_PATH], *s;
         DisableThreadLibraryCalls(hi);
+#ifdef MM8JP_TEST
         GetModuleFileNameA(hi, path, MAX_PATH);
         s = strrchr(path, '\\');
         if (s) strcpy(s + 1, "mm8jp.log"); else strcpy(path, "mm8jp.log");
@@ -213,6 +224,9 @@ BOOL WINAPI DllMain(HINSTANCE hi, DWORD reason, LPVOID rsv)
             if (GetEnvironmentVariableA("MM8JP_LOG", tmp, sizeof tmp) || GetEnvironmentVariableA("MM8JP_TEST", tmp, sizeof tmp))
                 g_log = fopen(path, "w");
         }
+#else
+        (void)s; (void)path;
+#endif
         if (check_ver(&ADDR_GOG)) A = &ADDR_GOG;
         else if (check_ver(&ADDR_GF)) A = &ADDR_GF;
         else {
@@ -223,7 +237,9 @@ BOOL WINAPI DllMain(HINSTANCE hi, DWORD reason, LPVOID rsv)
         o_RegOpenKeyExA = (PFN_RegOpenKeyExA)patch_iat("ADVAPI32.dll", "RegOpenKeyExA", my_RegOpenKeyExA);
         o_RegCreateKeyExA = (PFN_RegCreateKeyExA)patch_iat("ADVAPI32.dll", "RegCreateKeyExA", my_RegCreateKeyExA);
         jlog("reg hook %p %p", o_RegOpenKeyExA, o_RegCreateKeyExA);
+#ifdef MM8JP_TEST
         if (GetEnvironmentVariableA("MM8JP_TEST", path, MAX_PATH)) { g_test_mode = 1; test_init(); }
+#endif
         jp_init();
         {
             char dir[MAX_PATH], *e;

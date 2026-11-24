@@ -44,9 +44,15 @@ void patch_bytes(u32 addr, const void *src, int n);
 void hook_jmp(u32 at, void *fn);
 void *make_trampoline(u32 at, int nbytes);
 void *iat_hook(const char *dll, const char *name, void *fn);
+#ifdef MM6JP_TEST
+/* 試験版（build.bat test）だけ: 記録（mm6jp.log）と、テスト操作の設定 */
 void jlog(const char *fmt, ...);
+extern int g_cfg_test;
+#else
+#define jlog(...) ((void)0)
+#endif
 extern char g_dir[MAX_PATH];
-extern int g_cfg_windowed, g_cfg_scale, g_cfg_test;
+extern int g_cfg_windowed, g_cfg_scale;
 u32 crc32_buf(const void *p, int n);
 
 /* jpfont.c */
@@ -64,5 +70,7 @@ void lodtext_install(void);
 
 /* ddwin.c */
 void ddwin_install(void);
+#ifdef MM6JP_TEST
 void test_install(void);
+#endif
 HRESULT WINAPI my_DirectDrawCreate(void *guid, void **dd, void *outer);

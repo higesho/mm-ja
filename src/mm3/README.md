@@ -9,6 +9,7 @@ DOS 版 Might and Magic III 用の常駐プログラム MM3JP.COM と訳のデ�
 - `tools/make_work.py` / `tools/collect.py` … 訳す組を作る・訳を集めて検査する
 - `tools/build_mm3jp.py` … MM3JP.COM と MM3JP.DAT を組み立てる
 - `tools/make_dist.py` … 配布用の zip を作る
+- 配布物の `DOSBOX/opengl32.dll` は第1部と同じ物（`../mm1/gl/`）
 
 組み立て: Python 3 と capstone・keystone-engine・unicorn・Pillow を入れ、`emu.py` → `extract.py` → `build_mm3jp.py` の順に動かします。
 

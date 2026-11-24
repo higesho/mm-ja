@@ -1,4 +1,6 @@
+#ifdef MM7JP_TEST
 static void logmsg(const char *fmt, ...);
+#endif
 /* LOD の目録から、解いた後の大きさを読む（見出し 0x30 の +0x28。圧縮なしなら +0x14 を使う） */
 static int lod_size(void *lod, const char *name)
 {
@@ -193,7 +195,9 @@ u8 *__fastcall J_LodLoad(void *lod, int edx, const char *name, int kind)
     n = lod_size(lod, name);
     if (n <= 0) return orig;
     m = apply_tr(name, orig, n, &tmp);
+#ifdef MM7JP_TEST
     logmsg("LodLoad %s kind=%d size=%d -> %d\n", name, kind, n, m);
+#endif
     if (m < 0) return orig;
     buf = kind == 0 ? (u8 *)GameAlloc(ALLOCATOR, 0, 0, m + 1, hdr) : (u8 *)CrtMalloc(m + 1);
     if (!buf) { HeapFree(GetProcessHeap(), 0, tmp); return orig; }

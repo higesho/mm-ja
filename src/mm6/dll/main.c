@@ -4,8 +4,12 @@
 #include <stdarg.h>
 
 char g_dir[MAX_PATH];
-int g_cfg_windowed = 1, g_cfg_scale = 2, g_cfg_test = 0;
+int g_cfg_windowed = 1, g_cfg_scale = 2;
 static HMODULE g_real_ddraw;
+
+#ifdef MM6JP_TEST
+/* 試験版だけ: 記録をゲームのフォルダの mm6jp.log に書く（配布版では jlog は何もしない） */
+int g_cfg_test = 0;
 static FILE *g_log;
 
 void jlog(const char *fmt, ...)
@@ -23,6 +27,7 @@ void jlog(const char *fmt, ...)
     fputc('\n', g_log);
     fflush(g_log);
 }
+#endif
 
 void patch_bytes(u32 addr, const void *src, int n)
 {
@@ -118,7 +123,9 @@ static LONG WINAPI my_RegOpenKeyExA(HKEY k, LPCSTR sub, DWORD opt, REGSAM sam, P
     LONG r = wide ? RegOpenKeyExW(k, w, opt, sam, out) : real_RegOpenKeyExA(k, sub, opt, sam, out);
     if (r == ERROR_ACCESS_DENIED && (sam & (KEY_SET_VALUE | KEY_CREATE_SUB_KEY)))
         r = wide ? RegOpenKeyExW(k, w, opt, KEY_READ, out) : real_RegOpenKeyExA(k, sub, opt, KEY_READ, out);
+#ifdef MM6JP_TEST
     if (g_cfg_test) jlog("RegOpenKeyExA %p %s %x -> %d", k, sub ? sub : "", sam, r);
+#endif
     return r;
 }
 
@@ -133,7 +140,9 @@ static LONG WINAPI my_RegCreateKeyExA(HKEY k, LPCSTR sub, DWORD res, LPSTR cls, 
         r = wide ? RegOpenKeyExW(k, w, 0, KEY_READ, out) : real_RegOpenKeyExA(k, sub, 0, KEY_READ, out);
         if (r == ERROR_SUCCESS && disp) *disp = REG_OPENED_EXISTING_KEY;
     }
+#ifdef MM6JP_TEST
     if (g_cfg_test) jlog("RegCreateKeyExA %p %s %x -> %d", k, sub ? sub : "", sam, r);
+#endif
     return r;
 }
 
@@ -198,7 +207,9 @@ static void load_config(void)
     g_cfg_scale = GetPrivateProfileIntA("Display", "Scale", 2, ini);
     if (g_cfg_scale < 1) g_cfg_scale = 1;
     if (g_cfg_scale > 4) g_cfg_scale = 4;
+#ifdef MM6JP_TEST
     g_cfg_test = GetPrivateProfileIntA("Debug", "Test", 0, ini);
+#endif
 }
 
 static int check_version(void)
@@ -238,7 +249,9 @@ static void init(void)
     misc_install();
     lodtext_install();
     if (g_cfg_windowed) ddwin_install();
+#ifdef MM6JP_TEST
     if (g_cfg_test) test_install();
+#endif
 }
 
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID r)

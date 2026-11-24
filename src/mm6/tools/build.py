@@ -1,6 +1,6 @@
 """訳（translation/ja/*.tsv）から mm6jp_text.bin と mm6jp_font.bin を作り、ゲームのフォルダへ置く。
 
-  python build.py            作ってゲームのフォルダへ写す（ddraw.dll も）
+  python build.py            作ってゲームのフォルダへ写す（ddraw.dll は試験版 dll/out/test/ddraw.dll）
   python build.py --check    検査だけ
 
 訳の TSV（UTF-8）: 1 行 1 件、タブ区切り
@@ -212,7 +212,7 @@ def main():
         import shutil
         for f in ['mm6jp_text.bin', 'mm6jp_font.bin']:
             shutil.copy(os.path.join(OUT, f), os.path.join(GAME, f))
-        dll = os.path.join(WORK, 'dll', 'out', 'ddraw.dll')
+        dll = os.path.join(WORK, 'dll', 'out', 'test', 'ddraw.dll')   # 試験版（build.bat test）
         if os.path.exists(dll):
             shutil.copy(dll, os.path.join(GAME, 'ddraw.dll'))
         print('ゲームのフォルダへ置いた')

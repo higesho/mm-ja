@@ -24,6 +24,8 @@ def main():
     # 訳文の中に原文の英文がそのまま入っていないか（念のため）
     t = open(files[1][0], 'rb').read()
     assert t[:4] == b'MJT1'
+    # 配布版の DLL か（試験版はテスト操作の共有メモリ名を持つ）
+    assert b'MM6JP_TEST' not in open(files[0][0], 'rb').read(), '試験版の DLL は配布しない'
     zp = os.path.join(DIST, 'MightAndMagic6_JP.zip')
     with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as z:
         for src, name in files:

@@ -1,6 +1,7 @@
 # 前の版の配布 zip をもとに、日本語化の本体と説明書だけを差し替えて新しい版の zip を作る（M&M 1〜3 共通）
 #   python repack.py <前の zip> <新しい zip> <説明書の元（UTF-8）> <差し替えるファイル>...
-#   - zip の中の名前・順・ほかのファイル（DOSBOX\opengl32.dll など）は前の版のまま
+#   - zip の中の名前・順・差し替えないファイルは前の版のまま
+#   - 差し替えるファイルは名前で合わせる（DOSBOX\opengl32.dll なら opengl32.dll を渡す）
 #   - 名前は前の版と同じく Shift_JIS で入れる（UTF-8 の印を付けない）
 #   - 説明書は「はじめにお読みください.txt」として、BOM 付き UTF-8・CRLF で入れる
 import os
@@ -34,6 +35,9 @@ def main():
                 data = readme
             elif name in repl:
                 data = open(repl.pop(name), "rb").read()
+            elif os.path.basename(name) in repl:
+                # フォルダの中のファイル（DOSBOX/opengl32.dll など）は、名前だけで合わせる
+                data = open(repl.pop(os.path.basename(name)), "rb").read()
             else:
                 data = zin.read(info)
             zi = SJISInfo(name, date_time=info.date_time)

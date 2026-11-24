@@ -1,16 +1,22 @@
 #pragma once
 #include <windows.h>
 
+#ifdef MM8JP_TEST  /* 記録は試験版だけ。配布版では何もしない */
 void jlog(const char *fmt, ...);
+#else
+#define jlog(...) ((void)0)
+#endif
 void *patch_iat(const char *dll, const char *func, void *repl);
 void *patch_iat_mod(HMODULE mod, const char *dll, const char *func, void *repl);
 void hook_jmp(DWORD addr, void *fn);
 void patch_bytes(DWORD addr, const void *bytes, int n);
 
 void jp_init(void);
+#ifdef MM8JP_TEST  /* 試験版だけ（testmode.c） */
 void test_init(void);
 void test_late_init(void);
 extern int g_test_mode;
+#endif
 void text_init(const char *gamedir);
 void text_late_init(void);
 void item_init(void);

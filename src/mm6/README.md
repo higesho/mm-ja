@@ -2,7 +2,7 @@
 
 GOG 版 Might and Magic 6 用の代理 ddraw.dll（日本語の字を描き、表や文を実行時に訳へ差し替える）と、訳のデータを作る道具です。
 
-- `dll/` … ddraw.dll の本体（C）。`dll/build.bat` で Visual Studio（32 ビット）で組み立てる
+- `dll/` … ddraw.dll の本体（C）。`dll/build.bat` で Visual Studio（32 ビット）で組み立てる（配布版は `dll/out/ddraw.dll`。`build.bat test` は試験用の操作を入れた試験版を `dll/out/test/ddraw.dll` に作る。試験版は配布しない）
 - `tools/lod.py` / `tools/extract_text.py` … icons.lod から表・文字列集を取り出し、訳す欄を抜き出す
 - `tools/packets.py` / `tools/names.py` … 訳す組を作る・名前の対訳表を作る
 - `tools/build.py` … 訳から mm6jp_text.bin とフォントの mm6jp_font.bin を作る

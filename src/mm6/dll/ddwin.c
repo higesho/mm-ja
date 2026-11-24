@@ -4,8 +4,9 @@
  *   主画面へ Blt」なので、オフスクリーン面を 565 で作らせ、主画面への Blt を GDI の
  *   StretchDIBits に置き換える。Scale 倍に広げて写し、マウスの座標は割り戻す。
  *
- * テスト（mm6jp.ini の [Debug] Test=1）: 共有メモリ "MM6JP_TEST" で命令を受ける。
- *   実際のキーボード・マウスは読まず、注入したものだけをゲームに見せる。窓は前面に出さない。
+ * テスト（試験版 = build.bat test で作ったものだけ。mm6jp.ini の [Debug] Test=1）:
+ *   共有メモリで命令を受ける。実際のキーボード・マウスは読まず、注入したものだけをゲームに見せる。
+ *   窓は前面に出さない。配布版にはこの仕組みを入れない（#ifdef MM6JP_TEST）。
  */
 #include "mm6jp.h"
 #include <ddraw.h>
@@ -53,6 +54,9 @@ static int WINAPI my_GetDeviceCaps(HDC dc, int i)
     return real_GetDeviceCaps(dc, i);
 }
 
+static HWND main_hwnd(void) { return *(HWND *)A_MainWindow; }
+
+#ifdef MM6JP_TEST
 /* ---- テスト用の共有メモリ ---- */
 typedef struct {
     u32 magic;
@@ -66,8 +70,6 @@ typedef struct {
 } TestCtl;
 static TestCtl *g_ctl;
 static u32 g_last_cmd;
-
-static HWND main_hwnd(void) { return *(HWND *)A_MainWindow; }
 
 static void post_mouse(UINT msg, int btnmask)
 {
@@ -157,6 +159,7 @@ static void test_frame(void)
 {
     if (g_ctl) g_ctl->frame++;
 }
+#endif /* MM6JP_TEST */
 
 /* ---- 主画面へ写す ---- */
 /* 窓の外形の大きさ（中が 640*Scale x 480*Scale になる）と、画面からはみ出さない位置 */
@@ -214,7 +217,9 @@ static void present(IDirectDrawSurface *src)
                       (BITMAPINFO *)&bi, DIB_RGB_COLORS, SRCCOPY);
         ReleaseDC(h, dc);
     }
+#ifdef MM6JP_TEST
     test_frame();
+#endif
     misc_frame();
     src->lpVtbl->Unlock(src, 0);
 }
@@ -315,8 +320,10 @@ static HWND WINAPI my_CreateWindowExA(DWORD, LPCSTR, LPCSTR, DWORD, int, int, in
 static BOOL (WINAPI *real_MoveWindow)(HWND, int, int, int, int, BOOL);
 static BOOL (WINAPI *real_ScreenToClient)(HWND, LPPOINT);
 static BOOL (WINAPI *real_GetClientRect)(HWND, LPRECT);
+#ifdef MM6JP_TEST
 static BOOL (WINAPI *real_GetCursorPos)(LPPOINT);
 static SHORT (WINAPI *real_GetAsyncKeyState)(int);
+#endif
 
 static BOOL WINAPI my_MoveWindow(HWND h, int x, int y, int w, int hh, BOOL rp)
 {
@@ -344,6 +351,8 @@ static BOOL WINAPI my_GetClientRect(HWND h, LPRECT r)
     return ok;
 }
 
+#ifdef MM6JP_TEST
+/* テスト: 注入したマウスの位置・ボタンとキーだけをゲームに見せる */
 static BOOL WINAPI my_GetCursorPos(LPPOINT p)
 {
     if (g_ctl) {
@@ -364,6 +373,7 @@ static SHORT WINAPI my_GetAsyncKeyState(int vk)
     }
     return real_GetAsyncKeyState(vk);
 }
+#endif
 
 void ddwin_install(void)
 {
@@ -371,24 +381,30 @@ void ddwin_install(void)
     *(u32 *)A_WindowFlags |= 1;    /* -window と同じ */
     real_MoveWindow = iat_hook("USER32.dll", "MoveWindow", my_MoveWindow);
     real_ScreenToClient = iat_hook("USER32.dll", "ScreenToClient", my_ScreenToClient);
+#ifdef MM6JP_TEST
     real_GetCursorPos = iat_hook("USER32.dll", "GetCursorPos", my_GetCursorPos);
     real_GetAsyncKeyState = iat_hook("USER32.dll", "GetAsyncKeyState", my_GetAsyncKeyState);
+#endif
     real_GetClientRect = iat_hook("USER32.dll", "GetClientRect", my_GetClientRect);
     real_CreateWindowExA = iat_hook("USER32.dll", "CreateWindowExA", my_CreateWindowExA);
     real_GetDeviceCaps = iat_hook("GDI32.dll", "GetDeviceCaps", my_GetDeviceCaps);
+#ifdef MM6JP_TEST
     if (!real_GetCursorPos) real_GetCursorPos = GetCursorPos;
     if (!real_GetAsyncKeyState) real_GetAsyncKeyState = GetAsyncKeyState;
+#endif
 }
 
-/* ---- テスト: 窓を前面に出さない・非アクティブにならない ---- */
+/* ---- 窓の手続き: Scale 倍のマウス座標を割り戻す（テストのときは非アクティブにならない） ---- */
 
 static LRESULT CALLBACK win_proc(HWND h, UINT m, WPARAM w, LPARAM l)
 {
+#ifdef MM6JP_TEST
     if (g_ctl) {
         if (m == WM_ACTIVATEAPP && !w) w = 1;
         if (m == WM_ACTIVATE && LOWORD(w) == WA_INACTIVE) w = WA_ACTIVE;
         if (m == WM_KILLFOCUS) return 0;
     }
+#endif
     if (g_cfg_scale > 1 && m >= WM_MOUSEMOVE && m <= WM_MBUTTONDBLCLK) {
         int x = (short)LOWORD(l) / g_cfg_scale, y = (short)HIWORD(l) / g_cfg_scale;
         l = MAKELPARAM(x, y);
@@ -400,7 +416,9 @@ static HWND WINAPI my_CreateWindowExA(DWORD ex, LPCSTR cls, LPCSTR name, DWORD s
                                       HWND parent, HMENU menu, HINSTANCE inst, LPVOID param)
 {
     HWND h;
+#ifdef MM6JP_TEST
     if (g_ctl) ex &= ~WS_EX_TOPMOST;
+#endif
     h = real_CreateWindowExA(ex, cls, name, st, x, y, w, hh, parent, menu, inst, param);
     if (h && !parent && !g_orig_proc) {
         RECT r;
@@ -414,6 +432,8 @@ static HWND WINAPI my_CreateWindowExA(DWORD ex, LPCSTR cls, LPCSTR name, DWORD s
     return h;
 }
 
+#ifdef MM6JP_TEST
+/* ---- テスト: 窓を前面に出さない・非アクティブにならない ---- */
 static BOOL WINAPI my_SetForegroundWindow(HWND h) { return TRUE; }
 static HWND WINAPI my_SetActiveWindow(HWND h) { return main_hwnd(); }
 static HWND WINAPI my_GetForegroundWindow(void) { return main_hwnd(); }
@@ -457,3 +477,4 @@ void test_install(void)
     CreateThread(0, 0, test_thread, 0, 0, 0);
     jlog("テスト操作を有効にした");
 }
+#endif /* MM6JP_TEST */

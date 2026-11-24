@@ -2,7 +2,9 @@
 
 GOG 版 Might and Magic 8 用の代理 dinput.dll（日本語の字を描き、文を実行時に訳へ差し替える）と、訳のデータ jp/mm8jp.dat を作る道具です。
 
-- `src/` … dinput.dll の本体（C）。`src/build.bat` で Visual Studio（32 ビット）で組み立てる
+- `src/` … dinput.dll の本体（C）。`src/build.bat` で Visual Studio（32 ビット）で配布版 `build/dinput.dll` を組み立てる
+  - `src/build.bat test` は試験版 `build/test/dinput.dll`（`/DMM8JP_TEST`、`testmode.c` を足し、記録 mm8jp.log と試験の操作を受け付ける）。試験版は配布しない
+  - バージョン情報は `src/mm8jp.rc`
 - `tools/mkjfont.py` … 東雲フォント（BDF）から字の表 `src/jfont.h` を作る（組み立ての前に必要）
 - `tools/lod.py` / `tools/extract.py` … LOD 書庫を読み、訳す文を抜き出す
 - `tools/make_work.py` / `tools/collect_glossary.py` … 訳す組と名前の対訳表を作る

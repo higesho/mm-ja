@@ -706,7 +706,8 @@ static LONG WINAPI J_RegOpenKeyExA(HKEY k, LPCSTR sub, DWORD opt, REGSAM sam, PH
     return r;
 }
 
-/* ---- 調べ用の記録（環境変数 MM7JP_LOG があるとき） ---- */
+#ifdef MM7JP_TEST
+/* ---- 調べ用の記録（試験版だけ。環境変数 MM7JP_LOG があるとき） ---- */
 static FILE *logf;
 static void logmsg(const char *fmt, ...)
 {
@@ -735,6 +736,7 @@ static void set_iat(DWORD at, void *fn)
     *(void **)at = fn;
     VirtualProtect((void *)at, 4, old, &old);
 }
+#endif /* MM7JP_TEST */
 
 static LONG WINAPI J_RegCreateKeyExA(HKEY k, LPCSTR sub, DWORD res, LPSTR cls, DWORD opt, REGSAM sam,
                                      const LPSECURITY_ATTRIBUTES sa, PHKEY out, LPDWORD disp)
@@ -747,6 +749,7 @@ static LONG WINAPI J_RegCreateKeyExA(HKEY k, LPCSTR sub, DWORD res, LPSTR cls, D
     return r;
 }
 
+#ifdef MM7JP_TEST
 /* 試験用: MM7JP_SOFT があるとき "Use D3D" を 0 として返す（窓ではソフト描画にする） */
 static LONG WINAPI T_RegQueryValueExA(HKEY k, LPCSTR name, LPDWORD res, LPDWORD type, LPBYTE data, LPDWORD size)
 {
@@ -833,6 +836,7 @@ void __fastcall T_EndScene(u8 *r, int edx)
     }
     ((EndScene_t)(void *)tramp_endscene)(r, edx);
 }
+#endif /* MM7JP_TEST */
 
 /* ---- 書き換え ---- */
 static int code_ok = 1;
@@ -898,6 +902,8 @@ static void install(void)
             VirtualProtect(iat, 4, old, &old);
         }
     }
+#ifdef MM7JP_TEST
+    /* 試験版だけ: 環境変数で記録・ソフト描画・試験の操作口・フックなしを選ぶ */
     if (GetEnvironmentVariableA("MM7JP_LOG", NULL, 0)) {
         char lp[MAX_PATH];
         strcpy(lp, jpdir);
@@ -920,6 +926,7 @@ static void install(void)
         }
     }
     if (GetEnvironmentVariableA("MM7JP_NOHOOK", NULL, 0)) return;
+#endif /* MM7JP_TEST */
     write_jmp(0x44C54A, (void *)J_GetLineWidth);
     write_jmp(0x44C5C9, (void *)J_CalcTextHeight);
     write_jmp(0x44C65A, (void *)J_GetStringHeight2);
