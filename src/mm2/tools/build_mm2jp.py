@@ -428,9 +428,10 @@ df_lp:
     je df_hit
     jmp df_next
 df_h:
-    cmp al, 2
+    ; 先頭のハッシュで探すのは STR の区切り 0（種類 2・番号 0）と怪物（種類 4・番号 0）だけ
+    cmp ax, 2
     je df_h2
-    cmp al, 4
+    cmp ax, 4
     jne df_next
 df_h2:
     mov ax, word ptr cs:[si+8]
@@ -601,10 +602,28 @@ dec_patch:
     mov al, 0xff
     call dat_find
     jc dp_out
+    ; 復号先の区画が STR.DAT・怪物の大きさに足りるかを、DOS の管理表（MCB）で確かめる
+    ; （地図など小さな区画をハッシュの一致で取り違えて、後ろの管理表を壊さないように）
+    mov ax, word ptr cs:[{DSTSEG}]
+    dec ax
+    mov es, ax
+    cmp byte ptr es:[0], 0x4d
+    je dp_mcb
+    cmp byte ptr es:[0], 0x5a
+    jne dp_skip
+dp_mcb:
+    mov ax, word ptr es:[3]
     cmp byte ptr cs:[{E_KIND}], 2
-    je dp_str
+    jne dp_m4
+    cmp ax, {STR_PARAS}
+    jb dp_skip
+    jmp dp_str
+dp_m4:
     cmp byte ptr cs:[{E_KIND}], 4
-    je dp_mon
+    jne dp_skip
+    cmp ax, {MON_PARAS}
+    jae dp_mon
+dp_skip:
     call dat_close
     jmp dp_out
 dp_str:
@@ -1369,7 +1388,8 @@ def build(game, trfile, outdir):
               SAVE8_6=V["SAVE8"] + 6, OLD21_2=V["OLD21"] + 2, E_OFF2=V["E_OFF"] + 2,
               DEC_CLOSE_IP=DEC_CLOSE_IP, ITEMS_CLOSE_IP=ITEMS_CLOSE_IP, ITEMS=ITEMS, ITEM1=ITEMS + 20,
               EV_FREE_IP=EV_FREE_IP, EV_NAME=EV_NAME, EV_LOC=EV_LOC, EV_TAB=EV_BUF + 1,
-              PATH2=V["PATH"] + 2, PATH4=V["PATH"] + 4, PATH6=V["PATH"] + 6, PATH8=V["PATH"] + 8)
+              PATH2=V["PATH"] + 2, PATH4=V["PATH"] + 4, PATH6=V["PATH"] + 6, PATH8=V["PATH"] + 8,
+              STR_PARAS=(len(P["raw"]) + 15) // 16, MON_PARAS=(len(P["mon"]) + 15) // 16)
     lay = dict(SIG=0, SMAP=0, TIDX=0, PAIRS=0, GLY=0, DSTAB=0, CFTAB=0, OVLTAB=0, SCRATCH=0, PH=0)
 
     def kwl():

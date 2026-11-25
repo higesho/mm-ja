@@ -56,6 +56,14 @@ def layout(t, width):
             if len(cur) >= width:
                 carry = ""
                 k = 0
+                # 英字・数字・記号のひと続き（「(y/n)?」「10,000」など）は行をまたがせず、まとめて次の行へ送る
+                if ch != " " and ord(ch) < 0x80 and cur[-1] != " " and ord(cur[-1]) < 0x80:
+                    j = len(cur)
+                    while j > 0 and cur[j - 1] != " " and ord(cur[j - 1]) < 0x80:
+                        j -= 1
+                    if j > 0 and len(cur) - j <= 12:
+                        carry = cur[j:]
+                        cur = cur[:j]
                 while cur and k < 2 and (ch in NO_HEAD if not carry else carry[0] in NO_HEAD):
                     carry = cur[-1] + carry
                     cur = cur[:-1]
