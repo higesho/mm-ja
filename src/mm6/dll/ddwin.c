@@ -77,6 +77,8 @@ typedef struct {
 } TestCtl;
 static TestCtl *g_ctl;
 static u32 g_last_cmd;
+static volatile int g_strdump_req;
+void lodtext_test_dump(void);
 
 static void post_mouse(UINT msg, int btnmask)
 {
@@ -144,6 +146,11 @@ static void run_cmd(void)
     } else if (!strcmp(c, "char") && a1) {
         HWND h = main_hwnd();
         if (h) PostMessageA(h, WM_CHAR, (u8)a1[0], 1);
+    } else if (!strcmp(c, "ending") && a1) {        /* ending 0|1|2: 終わりの画面を出す */
+        HWND h = main_hwnd();
+        if (h) PostMessageA(h, WM_APP + 0x61, atoi(a1), 0);
+    } else if (!strcmp(c, "strdump")) {             /* 次のフレームで、マップの文字列集を全部書き出して終わる */
+        g_strdump_req = 1;
     } else {
         lstrcpyA(g_ctl->reply, "unknown");
     }
@@ -165,6 +172,7 @@ static DWORD WINAPI test_thread(LPVOID p)
 static void test_frame(void)
 {
     if (g_ctl) g_ctl->frame++;
+    if (g_strdump_req) { g_strdump_req = 0; lodtext_test_dump(); }
 }
 #endif /* MM6JP_TEST */
 
@@ -440,6 +448,10 @@ static LRESULT CALLBACK win_proc(HWND h, UINT m, WPARAM w, LPARAM l)
         if (m == WM_ACTIVATEAPP && !w) w = 1;
         if (m == WM_ACTIVATE && LOWORD(w) == WA_INACTIVE) w = WA_ACTIVE;
         if (m == WM_KILLFOCUS) return 0;
+        if (m == WM_APP + 0x61) {       /* 試験: 終わりの画面（0 = 勝ち、1・2 = 負け）をゲームの主スレッドで出す */
+            ((void (__fastcall *)(int))0x4A6CB0)((int)w);
+            return 0;
+        }
     }
 #endif
     if (g_cfg_scale > 1 && m >= WM_MOUSEMOVE && m <= WM_MBUTTONDBLCLK) {

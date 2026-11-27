@@ -177,13 +177,51 @@ typedef void (__fastcall *GameFree_t)(void *heap, int edx, void *p);
 typedef void *(__cdecl *GameMalloc_t)(int size);
 static LodLoad_t real_LodLoad;
 
+/* 文字列集（*.str）は、読んだあとゲームが LOD の見出しをもう一度読み、そこにある「元の大きさ」ぶんを使う。
+ *   0x439660  マップの *.str: その大きさぶんを 0x54D044 へ写し、NUL を数えて文字列の表を作る
+ *   0x452D0B  intro.str、0x4A6E97 win.str・lose.str: その大きさぶんの NUL を改行に変え、末尾に NUL を置く
+ * 訳は元と長さが違うので、そのままでは後ろのごみまで読む（短いとき）か、末尾が切れる（長いとき）。
+ * この 3 か所の「見出しを読む fread」を包んで、大きさを置き換え後のものにする。 */
+#define A_Fread 0x4AE63C
+typedef u32 (__cdecl *Fread_t)(void *buf, u32 size, u32 count, void *fp);
+static u32 g_last_size;        /* 直前に置き換えたファイルの、置き換え後の大きさ（置き換えていなければ 0） */
+#ifdef MM6JP_TEST
+static char g_last_name[32];
+static int g_tail_fill;        /* 試験: 置き換えた文の後ろを '#' で埋め、読み過ぎを画面で見えるようにする */
+#endif
+
+static u32 __cdecl my_fread_hdr(void *buf, u32 size, u32 count, void *fp)
+{
+    u32 r = ((Fread_t)A_Fread)(buf, size, count, fp);
+    if (g_last_size && size * count >= 0x30) {
+        jlog("%s: 大きさ %u（元 %u）", g_last_name,
+             g_last_size, *(u32 *)((u8 *)buf + 0x28) ? *(u32 *)((u8 *)buf + 0x28) : *(u32 *)((u8 *)buf + 0x14));
+        *(u32 *)((u8 *)buf + 0x28) = g_last_size;   /* 0 でなければこちらが使われる（0 なら +0x14） */
+    }
+    g_last_size = 0;
+    return r;
+}
+
+/* at にある「call A_Fread」を my_fread_hdr へ向ける */
+static void hook_fread_call(u32 at)
+{
+    u8 b[5];
+    u32 rel = (u32)my_fread_hdr - (at + 5);
+    if (*(u8 *)at != 0xE8 || at + 5 + *(u32 *)(at + 1) != A_Fread) { jlog("fread の呼び出しが違う: %x", at); return; }
+    b[0] = 0xE8;
+    memcpy(b + 1, &rel, 4);
+    patch_bytes(at, b, 5);
+}
+
 static void *__fastcall my_LodLoad(void *lod, int edx, const char *name, int useMalloc)
 {
-    void *buf = real_LodLoad(lod, edx, name, useMalloc);
+    void *buf;
     TFile *tf;
     u32 us;
     u8 *out, *nb;
-    int n, nrep = 0, nbad = 0, total = 0, k;
+    int n, nrep = 0, nbad = 0, total = 0, k, pad = 16;
+    g_last_size = 0;
+    buf = real_LodLoad(lod, edx, name, useMalloc);
     if (!buf || (u32)lod != A_IconsLod || !g_nfiles) return buf;
     tf = find_tfile(name);
     if (!tf) return buf;
@@ -205,22 +243,83 @@ static void *__fastcall my_LodLoad(void *lod, int edx, const char *name, int use
         }
     } else if (tf->type == 2) n = merge_strs(tf, (u8 *)buf, us, out, &nrep, &nbad);
     else n = merge_table(tf, (u8 *)buf, us, out, &nrep, &nbad);
+#ifdef MM6JP_TEST
+    if (g_tail_fill) pad = 4096;
+#endif
     if (useMalloc) {
-        nb = (u8 *)((GameMalloc_t)A_GameMalloc)(n + 16);
+        nb = (u8 *)((GameMalloc_t)A_GameMalloc)(n + pad);
     } else {
-        nb = (u8 *)((GameAlloc_t)A_GameAlloc)((void *)A_Heap, 0, 0, n + 16, name);
+        nb = (u8 *)((GameAlloc_t)A_GameAlloc)((void *)A_Heap, 0, 0, n + pad, name);
         ((GameFree_t)A_GameFree)((void *)A_Heap, 0, buf);
     }
     memcpy(nb, out, n);
     memset(nb + n, 0, 16);
+#ifdef MM6JP_TEST
+    if (g_tail_fill) memset(nb + n + 1, '#', pad - 1);   /* NUL 1 つのあとは全部ごみ */
+    lstrcpynA(g_last_name, name, sizeof g_last_name);
+#endif
+    g_last_size = n;
     HeapFree(GetProcessHeap(), 0, out);
     jlog("%s: %d 件を置き換え（原文が違い飛ばした %d 件）", name, nrep, nbad);
     return nb;
 }
+
+#ifdef MM6JP_TEST
+/* 試験: マップの文字列集をすべてゲーム自身の読み込み（0x439EA0）に通し、出来た文字列の表を
+ * mm6jp_strdump.txt へ書き出して終わる。ゲームの主スレッドから呼ぶこと。
+ *   F <名前> <大きさ> <本数>
+ *   <番号> <文の 16 進>                                                              */
+void lodtext_test_dump(void)
+{
+    char path[MAX_PATH], line[4200], nm[32];
+    HANDLE h;
+    DWORD w;
+    int i, k, j, o;
+    wsprintfA(path, "%smm6jp_strdump.txt", g_dir);
+    h = CreateFileA(path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if (h == INVALID_HANDLE_VALUE) return;
+    for (i = 0; i < g_nfiles; i++) {
+        TFile *f = &g_files[i];
+        char *dot;
+        int cnt, size;
+        if (f->type != 2) continue;
+        lstrcpynA(nm, f->name, sizeof nm);
+        dot = strrchr(nm, '.');
+        if (dot) *dot = 0;
+        if (!lstrcmpiA(nm, "intro") || !lstrcmpiA(nm, "win") || !lstrcmpiA(nm, "lose")) continue;
+        ((void (__fastcall *)(const char *))0x439EA0)(nm);
+        size = *(int *)0x551D18;
+        cnt = *(int *)0x54FCE0;
+        o = wsprintfA(line, "F %s %d %d\r\n", f->name, size, cnt);
+        WriteFile(h, line, o, &w, 0);
+        for (k = 0; k < cnt; k++) {
+            const u8 *s = (const u8 *)0x54D044 + ((int *)0x551F9C)[k];
+            o = wsprintfA(line, "%d ", k);
+            for (j = 0; s[j] && j < 2000; j++) o += wsprintfA(line + o, "%02x", s[j]);
+            o += wsprintfA(line + o, "\r\n");
+            WriteFile(h, line, o, &w, 0);
+        }
+    }
+    CloseHandle(h);
+    jlog("文字列集の書き出し終わり");
+    ExitProcess(0);
+}
+#endif
 
 void lodtext_install(void)
 {
     read_lod_dir();
     real_LodLoad = (LodLoad_t)make_trampoline(A_LodLoadFile, 7);
     hook_jmp(A_LodLoadFile, my_LodLoad);
+#ifdef MM6JP_TEST
+    {
+        char ini[MAX_PATH];
+        wsprintfA(ini, "%smm6jp.ini", g_dir);
+        g_tail_fill = GetPrivateProfileIntA("Debug", "TailFill", 0, ini);
+        if (GetPrivateProfileIntA("Debug", "Off", 0, ini) & 8) { jlog("大きさの差し替えなし"); return; }
+    }
+#endif
+    hook_fread_call(0x43970A);
+    hook_fread_call(0x452DB4);
+    hook_fread_call(0x4A6F48);
 }
