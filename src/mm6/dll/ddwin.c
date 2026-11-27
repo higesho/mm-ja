@@ -12,13 +12,20 @@
 #include <ddraw.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <intrin.h>
 
 static IDirectDrawSurface *g_primary;
 static HRESULT (WINAPI *real_CreateSurface)(IDirectDraw *, LPDDSURFACEDESC, LPDIRECTDRAWSURFACE *, IUnknown *);
 static HRESULT (WINAPI *real_Blt)(IDirectDrawSurface *, LPRECT, IDirectDrawSurface *, LPRECT, DWORD, LPDDBLTFX);
 static HRESULT (WINAPI *real_GetPixelFormat)(IDirectDrawSurface *, LPDDPIXELFORMAT);
 static HRESULT (WINAPI *real_Flip)(IDirectDrawSurface *, IDirectDrawSurface *, DWORD);
+static HRESULT (WINAPI *real_Unlock)(IDirectDrawSurface *, LPVOID);
 void misc_frame(void);
+#ifdef MM6JP_TEST
+void heap_check(const char *where);
+#else
+#define heap_check(w) ((void)0)
+#endif
 static int g_ddwin_on;
 static HRESULT (WINAPI *real_SetCoop)(IDirectDraw *, HWND, DWORD);
 static HWND g_coop_hwnd;
@@ -221,16 +228,32 @@ static void present(IDirectDrawSurface *src)
     test_frame();
 #endif
     misc_frame();
-    src->lpVtbl->Unlock(src, 0);
+    if (real_Unlock) real_Unlock(src, 0); else src->lpVtbl->Unlock(src, 0);
+}
+
+/* 映像（Smacker）は窓表示のとき主画面をロックして、窓の画面上の位置へじかに書く（0x4A5E87〜0x4A6054）。
+   主画面は 640x480 の仮の面なので、位置は窓の中の座標のままにさせ（my_ClientToScreen）、
+   アンロックされたら窓へ写す */
+static HRESULT WINAPI my_Unlock(IDirectDrawSurface *s, LPVOID p)
+{
+    HRESULT r = real_Unlock(s, p);
+    if (g_ddwin_on && s == g_primary) present(s);
+    return r;
 }
 
 static HRESULT WINAPI my_Blt(IDirectDrawSurface *s, LPRECT dr, IDirectDrawSurface *src, LPRECT sr, DWORD fl, LPDDBLTFX fx)
 {
+    HRESULT r;
     if (g_ddwin_on && s == g_primary && src) {
+        heap_check("present の前");
         present(src);
+        heap_check("present の後");
         return DD_OK;
     }
-    return real_Blt(s, dr, src, sr, fl, fx);
+    heap_check("Blt の前");
+    r = real_Blt(s, dr, src, sr, fl, fx);
+    heap_check("Blt の後");
+    return r;
 }
 
 static HRESULT WINAPI my_CreateSurface(IDirectDraw *dd, LPDDSURFACEDESC d, LPDIRECTDRAWSURFACE *out, IUnknown *outer)
@@ -246,8 +269,8 @@ static HRESULT WINAPI my_CreateSurface(IDirectDraw *dd, LPDDSURFACEDESC d, LPDIR
         c.dwSize = sizeof c;
         c.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
         c.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-        c.dwWidth = 16;
-        c.dwHeight = 16;
+        c.dwWidth = 640;
+        c.dwHeight = 480;
         set565(&c.ddpfPixelFormat);
         d = &c;
     } else if (!(d->dwFlags & DDSD_PIXELFORMAT)) {
@@ -257,6 +280,8 @@ static HRESULT WINAPI my_CreateSurface(IDirectDraw *dd, LPDDSURFACEDESC d, LPDIR
         d = &c;
     }
     r = real_CreateSurface(dd, d, out, outer);
+    jlog("CreateSurface fl=%x caps=%x %dx%d pf=%d -> %08X %p", d->dwFlags, d->ddsCaps.dwCaps, d->dwWidth, d->dwHeight,
+         (d->dwFlags & DDSD_PIXELFORMAT) ? d->ddpfPixelFormat.dwRGBBitCount : 0, r, out ? *out : 0);
     if (r == DDERR_NOCOOPERATIVELEVELSET && real_SetCoop) {
         /* たまに起きる。設定し直してもう一度 */
         int k;
@@ -275,9 +300,11 @@ static HRESULT WINAPI my_CreateSurface(IDirectDraw *dd, LPDDSURFACEDESC d, LPDIR
             real_Blt = vt[5];
             real_GetPixelFormat = vt[21];
             real_Flip = vt[11];
+            real_Unlock = vt[32];
             VirtualProtect(vt, 4 * 32, PAGE_EXECUTE_READWRITE, &old);
             vt[5] = (void *)my_Blt;
             vt[11] = (void *)my_Flip;
+            vt[32] = (void *)my_Unlock;
             vt[21] = (void *)my_GetPixelFormat;
             VirtualProtect(vt, 4 * 32, old, &old);
         }
@@ -319,6 +346,7 @@ static HWND (WINAPI *real_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, in
 static HWND WINAPI my_CreateWindowExA(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 static BOOL (WINAPI *real_MoveWindow)(HWND, int, int, int, int, BOOL);
 static BOOL (WINAPI *real_ScreenToClient)(HWND, LPPOINT);
+static BOOL (WINAPI *real_ClientToScreen)(HWND, LPPOINT);
 static BOOL (WINAPI *real_GetClientRect)(HWND, LPRECT);
 #ifdef MM6JP_TEST
 static BOOL (WINAPI *real_GetCursorPos)(LPPOINT);
@@ -339,6 +367,14 @@ static BOOL WINAPI my_ScreenToClient(HWND h, LPPOINT p)
         p->y /= g_cfg_scale;
     }
     return r;
+}
+
+/* 映像を主画面へ書く処理（0x4A5EDC）から呼ばれたときは、窓の中の座標のままにする（my_Unlock を参照） */
+static BOOL WINAPI my_ClientToScreen(HWND h, LPPOINT p)
+{
+    u32 ra = (u32)_ReturnAddress();
+    if (g_ddwin_on && ra >= 0x4A5E00 && ra < 0x4A6090) return TRUE;
+    return real_ClientToScreen(h, p);
 }
 
 static BOOL WINAPI my_GetClientRect(HWND h, LPRECT r)
@@ -381,6 +417,7 @@ void ddwin_install(void)
     *(u32 *)A_WindowFlags |= 1;    /* -window と同じ */
     real_MoveWindow = iat_hook("USER32.dll", "MoveWindow", my_MoveWindow);
     real_ScreenToClient = iat_hook("USER32.dll", "ScreenToClient", my_ScreenToClient);
+    real_ClientToScreen = iat_hook("USER32.dll", "ClientToScreen", my_ClientToScreen);
 #ifdef MM6JP_TEST
     real_GetCursorPos = iat_hook("USER32.dll", "GetCursorPos", my_GetCursorPos);
     real_GetAsyncKeyState = iat_hook("USER32.dll", "GetAsyncKeyState", my_GetAsyncKeyState);

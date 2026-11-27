@@ -2,6 +2,7 @@
 #include "mm6jp.h"
 #include <stdio.h>
 #include <stdarg.h>
+#include <mmsystem.h>
 
 char g_dir[MAX_PATH];
 int g_cfg_windowed = 1, g_cfg_scale = 2;
@@ -313,6 +314,174 @@ static LONG CALLBACK test_veh(EXCEPTION_POINTERS *e)
 }
 #endif
 
+#ifdef MM6JP_TEST
+/* ヒープの点検: 壊れているのを最初に見つけた場所と、その前に無事だった場所を記録する */
+static char g_heap_ok[64] = "(始め)";
+static DWORD g_t0;
+static int g_heap_bad;
+void heap_check(const char *where)
+{
+    HANDLE hs[64];
+    DWORD i, n;
+    if (g_heap_bad || !g_cfg_test) return;
+    n = GetProcessHeaps(64, hs);
+    for (i = 0; i < n && i < 64; i++) {
+        if (!HeapValidate(hs[i], 0, 0)) {
+            g_heap_bad = 1;
+            jlog("ヒープ %p が壊れている: %s で発見（直前に無事だったのは %s）t=%u", hs[i], where, g_heap_ok, GetTickCount() - g_t0);
+            return;
+        }
+    }
+    lstrcpynA(g_heap_ok, where, sizeof g_heap_ok);
+}
+
+static DWORD WINAPI heap_watch(LPVOID p)
+{
+    while (!g_heap_bad) {
+        char w[48];
+        wsprintfA(w, "見張り %ums", GetTickCount() - g_t0);
+        heap_check(w);
+        Sleep(5);
+    }
+    return 0;
+}
+
+/* 映像（Smacker）の呼び出しの前後でヒープを点検する */
+#define SMK(name, n) static FARPROC r_##name;
+#define SMKW(name, args, call, fmt, ...) \
+    static DWORD WINAPI w_##name args { DWORD r; heap_check(#name " の前"); \
+        r = ((DWORD (WINAPI *) args) r_##name) call; heap_check(#name " の後"); \
+        if (fmt[0]) jlog(#name fmt " -> %x", __VA_ARGS__, r); return r; }
+SMK(SmackOpen, 3) SMK(SmackDoFrame, 1) SMK(SmackNextFrame, 1) SMK(SmackToBuffer, 7) SMK(SmackBlit, 11)
+SMK(SmackBlitOpen, 1) SMK(SmackBufferOpen, 6) SMK(SmackToBufferRect, 2) SMK(SmackClose, 1) SMK(SmackWait, 1)
+SMK(SmackBlitClear, 8) SMK(SmackSoundOnOff, 2) SMK(SmackGoto, 2) SMK(SmackSoundUseMSS, 1)
+SMKW(SmackOpen, (DWORD a, DWORD b, DWORD c), (a, b, c), " %x %x %x", a, b, c)
+SMKW(SmackDoFrame, (DWORD a), (a), "", 0)
+SMKW(SmackNextFrame, (DWORD a), (a), "", 0)
+SMKW(SmackToBuffer, (DWORD a, DWORD b, DWORD c, DWORD d, DWORD e, DWORD f, DWORD g), (a, b, c, d, e, f, g),
+     "", 0)
+SMKW(SmackBlit, (DWORD a, DWORD b, DWORD c, DWORD d, DWORD e, DWORD f, DWORD g, DWORD h, DWORD i, DWORD j, DWORD k),
+     (a, b, c, d, e, f, g, h, i, j, k), "", 0)
+SMKW(SmackBlitOpen, (DWORD a), (a), " fl=%x", a)
+SMKW(SmackBufferOpen, (DWORD a, DWORD b, DWORD c, DWORD d, DWORD e, DWORD f), (a, b, c, d, e, f),
+     " %x %x %d %d %d %d", a, b, c, d, e, f)
+SMKW(SmackToBufferRect, (DWORD a, DWORD b), (a, b), "", 0)
+SMKW(SmackClose, (DWORD a), (a), "", 0)
+SMKW(SmackWait, (DWORD a), (a), "", 0)
+SMKW(SmackBlitClear, (DWORD a, DWORD b, DWORD c, DWORD d, DWORD e, DWORD f, DWORD g, DWORD h), (a, b, c, d, e, f, g, h), "", 0)
+SMKW(SmackSoundOnOff, (DWORD a, DWORD b), (a, b), "", 0)
+SMKW(SmackGoto, (DWORD a, DWORD b), (a, b), "", 0)
+SMKW(SmackSoundUseMSS, (DWORD a), (a), " %x", a)
+
+static void test_smack_install(void)
+{
+#define HK(name, dec) r_##name = (FARPROC)iat_hook("smackw32.dll", "_" #name "@" #dec, w_##name);
+    HK(SmackOpen, 12) HK(SmackDoFrame, 4) HK(SmackNextFrame, 4) HK(SmackToBuffer, 28) HK(SmackBlit, 44)
+    HK(SmackBlitOpen, 4) HK(SmackBufferOpen, 24) HK(SmackToBufferRect, 8) HK(SmackClose, 4) HK(SmackWait, 4)
+    HK(SmackBlitClear, 32) HK(SmackSoundOnOff, 8) HK(SmackGoto, 8) HK(SmackSoundUseMSS, 4)
+#undef HK
+}
+
+/* waveOut の呼び出しを一つずつ通す（[Debug] WaveLock=1） */
+static CRITICAL_SECTION g_wcs;
+static FARPROC r_wClose, r_wWrite, r_wReset, r_wPrep, r_wUnprep;
+static UINT WINAPI l_wClose(HWAVEOUT h)
+{ UINT r; EnterCriticalSection(&g_wcs); r = ((UINT (WINAPI *)(HWAVEOUT))r_wClose)(h); LeaveCriticalSection(&g_wcs); return r; }
+static UINT WINAPI l_wReset(HWAVEOUT h)
+{ UINT r; EnterCriticalSection(&g_wcs); r = ((UINT (WINAPI *)(HWAVEOUT))r_wReset)(h); LeaveCriticalSection(&g_wcs); return r; }
+static UINT WINAPI l_wWrite(HWAVEOUT h, WAVEHDR *w, UINT n)
+{ UINT r; EnterCriticalSection(&g_wcs); r = ((UINT (WINAPI *)(HWAVEOUT, WAVEHDR *, UINT))r_wWrite)(h, w, n); LeaveCriticalSection(&g_wcs); return r; }
+static UINT WINAPI l_wPrep(HWAVEOUT h, WAVEHDR *w, UINT n)
+{ UINT r; EnterCriticalSection(&g_wcs); r = ((UINT (WINAPI *)(HWAVEOUT, WAVEHDR *, UINT))r_wPrep)(h, w, n); LeaveCriticalSection(&g_wcs); return r; }
+static UINT WINAPI l_wUnprep(HWAVEOUT h, WAVEHDR *w, UINT n)
+{ UINT r; EnterCriticalSection(&g_wcs); r = ((UINT (WINAPI *)(HWAVEOUT, WAVEHDR *, UINT))r_wUnprep)(h, w, n); LeaveCriticalSection(&g_wcs); return r; }
+static int g_wavelock;
+
+/* 音の出力先の切り分け: [Debug] WaveDev=n で WAVE_MAPPER を n 番の機器に替える（-1 なら替えない） */
+typedef UINT (WINAPI *waveOutOpen_t)(void *, UINT, const WAVEFORMATEX *, DWORD_PTR, DWORD_PTR, DWORD);
+static waveOutOpen_t real_waveOutOpen;
+static int g_wavedev = -1;
+
+static UINT WINAPI my_waveOutOpen(void *ph, UINT dev, const WAVEFORMATEX *f, DWORD_PTR cb, DWORD_PTR inst, DWORD fl)
+{
+    UINT r, d = dev;
+    heap_check("waveOutOpen の前");
+    jlog("waveOutOpen t=%u", GetTickCount() - g_t0);
+    if (dev == WAVE_MAPPER && g_wavedev >= 0) d = g_wavedev;
+    if (g_wavelock) EnterCriticalSection(&g_wcs);
+    r = real_waveOutOpen(ph, d, f, cb, inst, fl);
+    if (g_wavelock) LeaveCriticalSection(&g_wcs);
+    jlog("waveOutOpen dev=%d->%d tag=%x ch=%d %dHz %dbit fl=%x -> %u", (int)dev, (int)d,
+         f ? f->wFormatTag : 0, f ? f->nChannels : 0, f ? f->nSamplesPerSec : 0, f ? f->wBitsPerSample : 0, fl, r);
+    return r;
+}
+
+static void *iat_hook_mod(HMODULE mod, const char *dll, const char *name, void *fn)
+{
+    u8 *base = (u8 *)mod;
+    IMAGE_NT_HEADERS *nt;
+    IMAGE_IMPORT_DESCRIPTOR *d;
+    if (!base) return 0;
+    nt = (IMAGE_NT_HEADERS *)(base + ((IMAGE_DOS_HEADER *)base)->e_lfanew);
+    d = (IMAGE_IMPORT_DESCRIPTOR *)(base + nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+    for (; d->Name; d++) {
+        IMAGE_THUNK_DATA *ot, *ft;
+        if (lstrcmpiA((char *)(base + d->Name), dll)) continue;
+        ot = (IMAGE_THUNK_DATA *)(base + (d->OriginalFirstThunk ? d->OriginalFirstThunk : d->FirstThunk));
+        ft = (IMAGE_THUNK_DATA *)(base + d->FirstThunk);
+        for (; ot->u1.AddressOfData; ot++, ft++) {
+            void *old;
+            if (ot->u1.Ordinal & IMAGE_ORDINAL_FLAG) continue;
+            if (strcmp((char *)((IMAGE_IMPORT_BY_NAME *)(base + ot->u1.AddressOfData))->Name, name)) continue;
+            old = (void *)ft->u1.Function;
+            patch_bytes((u32)&ft->u1.Function, &fn, 4);
+            return old;
+        }
+    }
+    return 0;
+}
+
+
+static void test_wave_install(const char *ini)
+{
+    static const char *const mods[] = { "audiere.dll", "SmackW32.dll", "MSS32A.dll", "MSS32.dll" };
+    typedef UINT (WINAPI *num_t)(void);
+    typedef UINT (WINAPI *caps_t)(UINT_PTR, WAVEOUTCAPSA *, UINT);
+    HMODULE w = GetModuleHandleA("winmm.dll");
+    int i;
+    UINT n;
+    if (!w) w = LoadLibraryA("winmm.dll");
+    g_wavedev = GetPrivateProfileIntA("Debug", "WaveDev", -1, ini);
+    real_waveOutOpen = (waveOutOpen_t)GetProcAddress(w, "waveOutOpen");
+    n = ((num_t)GetProcAddress(w, "waveOutGetNumDevs"))();
+    for (i = 0; i < (int)n; i++) {
+        WAVEOUTCAPSA c;
+        if (((caps_t)GetProcAddress(w, "waveOutGetDevCapsA"))(i, &c, sizeof c) == 0) jlog("wave %d: %s", i, c.szPname);
+    }
+    for (i = 0; i < 4; i++) {
+        void *o = iat_hook_mod(GetModuleHandleA(mods[i]), "WINMM.dll", "waveOutOpen", my_waveOutOpen);
+        jlog("waveOutOpen フック %s: %s", mods[i], o ? "済" : "なし");
+    }
+    g_wavelock = GetPrivateProfileIntA("Debug", "WaveLock", 0, ini);
+    InitializeCriticalSection(&g_wcs);
+    if (g_wavelock) {
+        r_wClose = GetProcAddress(w, "waveOutClose"); r_wReset = GetProcAddress(w, "waveOutReset");
+        r_wWrite = GetProcAddress(w, "waveOutWrite"); r_wPrep = GetProcAddress(w, "waveOutPrepareHeader");
+        r_wUnprep = GetProcAddress(w, "waveOutUnprepareHeader");
+        for (i = 0; i < 4; i++) {
+            HMODULE m = GetModuleHandleA(mods[i]);
+            iat_hook_mod(m, "WINMM.dll", "waveOutClose", l_wClose);
+            iat_hook_mod(m, "WINMM.dll", "waveOutReset", l_wReset);
+            iat_hook_mod(m, "WINMM.dll", "waveOutWrite", l_wWrite);
+            iat_hook_mod(m, "WINMM.dll", "waveOutPrepareHeader", l_wPrep);
+            iat_hook_mod(m, "WINMM.dll", "waveOutUnprepareHeader", l_wUnprep);
+        }
+    }
+    jlog("WaveLock=%d", g_wavelock);
+    jlog("WaveDev=%d", g_wavedev);
+}
+#endif
+
 static void init(void)
 {
     char p[MAX_PATH], *s;
@@ -345,6 +514,10 @@ static void init(void)
         wsprintfA(ini, "%smm6jp.ini", g_dir);
         off = GetPrivateProfileIntA("Debug", "Off", 0, ini);
         jlog("Off=%d", off);
+        if (g_cfg_test) test_wave_install(ini);
+        if (g_cfg_test) test_smack_install();
+        g_t0 = GetTickCount();
+        if (g_cfg_test && GetPrivateProfileIntA("Debug", "HeapWatch", 0, ini)) CreateThread(0, 0, heap_watch, 0, 0, 0);
         if (!(off & 1)) text_install();
         if (!(off & 2)) misc_install();
         if (!(off & 4)) lodtext_install();
