@@ -947,6 +947,13 @@ static void install(void)
     write_jmp(0x44C474, (void *)J_LoadFont);
     make_tramp(tramp_lod, 0x410897, 6);
     write_jmp(0x410897, (void *)J_LodLoad);
+    /* 0x443D54「call fread（LOD の見出し）」を包む。文字列集の大きさを訳後のものにする */
+    if (*(u8 *)0x443D54 == 0xE8 && 0x443D54 + 5 + *(int *)0x443D55 == 0x4CB8A5) {
+        DWORD old;
+        VirtualProtect((void *)0x443D54, 5, PAGE_EXECUTE_READWRITE, &old);
+        *(DWORD *)0x443D55 = (DWORD)J_FreadHdr - (0x443D54 + 5);
+        VirtualProtect((void *)0x443D54, 5, old, &old);
+    }
 }
 
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID r)

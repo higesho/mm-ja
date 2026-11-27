@@ -166,16 +166,37 @@ static int apply_tr(const char *name, const u8 *src, int n, u8 **outp)
     return o;
 }
 
+/* 地図ごとの文字列集（*.str）と出来事（*.evt）は 0x443D04 が読む。0x410897 で読んだあと LOD の見出しを
+ * もう一度読み、そこにある「元の大きさ」ぶんを決まった場所（0x5B0FA0）へ写して、NUL を数えて文字列の表を作る。
+ * 訳を当てた文字列集は元と長さが違うので、そのままでは後ろを読み過ぎる（短いとき）か、末尾が切れる（長いとき）。
+ * 見出しを読む fread（0x443D54）を包んで、大きさを訳後のものにする。 */
+typedef unsigned (__cdecl *Fread_t)(void *buf, unsigned size, unsigned count, void *fp);
+static int last_size;       /* 直前に差し替えたファイルの、差し替え後の大きさ（差し替えていなければ 0） */
+static unsigned __cdecl J_FreadHdr(void *buf, unsigned size, unsigned count, void *fp)
+{
+    unsigned r = ((Fread_t)0x4CB8A5)(buf, size, count, fp);
+    if (last_size > 0 && size * count >= 0x30) {
+#ifdef MM7JP_TEST
+        logmsg("見出しの大きさ %u -> %d\n", *(unsigned *)((u8 *)buf + 0x28) ? *(unsigned *)((u8 *)buf + 0x28) : *(unsigned *)((u8 *)buf + 0x14), last_size);
+#endif
+        *(unsigned *)((u8 *)buf + 0x28) = (unsigned)last_size;   /* 0 でなければこちらが使われる（0 なら +0x14） */
+    }
+    last_size = 0;
+    return r;
+}
+
 u8 *__fastcall J_LodLoad(void *lod, int edx, const char *name, int kind)
 {
-    u8 *orig = ((LodLoad_t)(void *)tramp_lod)(lod, edx, name, kind);
+    u8 *orig;
     char path[MAX_PATH];
     HANDLE h;
     DWORD size, got;
     u8 *buf, *tmp = NULL;
-    int n, m;
+    int n, m, cap;
     static char hdr[0x30];
     const char *ext = name ? strrchr(name, '.') : NULL;
+    last_size = 0;
+    orig = ((LodLoad_t)(void *)tramp_lod)(lod, edx, name, kind);
     if (!orig || !ext || (_stricmp(ext, ".txt") && _stricmp(ext, ".str"))) return orig;
     strncpy(hdr, name, 15);
     /* 開発用: MM7JP\<名前> があればそれを丸ごと使う */
@@ -189,6 +210,7 @@ u8 *__fastcall J_LodLoad(void *lod, int edx, const char *name, int kind)
         CloseHandle(h);
         buf[got] = 0;
         if (kind == 0) GameFree(ALLOCATOR, 0, orig);
+        last_size = (int)got;
         return buf;
     }
     /* 訳の表を元の中身に当てる */
@@ -199,11 +221,14 @@ u8 *__fastcall J_LodLoad(void *lod, int edx, const char *name, int kind)
     logmsg("LodLoad %s kind=%d size=%d -> %d\n", name, kind, n, m);
 #endif
     if (m < 0) return orig;
-    buf = kind == 0 ? (u8 *)GameAlloc(ALLOCATOR, 0, 0, m + 1, hdr) : (u8 *)CrtMalloc(m + 1);
+    /* 元の大きさより小さくは取らない（元の大きさぶん読まれても、後ろは 0） */
+    cap = (m > n ? m : n) + 16;
+    buf = kind == 0 ? (u8 *)GameAlloc(ALLOCATOR, 0, 0, cap, hdr) : (u8 *)CrtMalloc(cap);
     if (!buf) { HeapFree(GetProcessHeap(), 0, tmp); return orig; }
     memcpy(buf, tmp, m);
-    buf[m] = 0;
+    memset(buf + m, 0, cap - m);
     HeapFree(GetProcessHeap(), 0, tmp);
     if (kind == 0) GameFree(ALLOCATOR, 0, orig);
+    last_size = m;
     return buf;
 }
