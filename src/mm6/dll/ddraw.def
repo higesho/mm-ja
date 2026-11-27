@@ -1,7 +1,24 @@
 LIBRARY ddraw
 EXPORTS
-    DirectDrawCreate = ex_DirectDrawCreate
-    DirectDrawCreateEx = ex_DirectDrawCreateEx
-    DirectDrawEnumerateA = ex_DirectDrawEnumerateA
-    DirectDrawEnumerateExA = ex_DirectDrawEnumerateExA
-    DirectDrawCreateClipper = ex_DirectDrawCreateClipper
+    AcquireDDThreadLock = ex_AcquireDDThreadLock @1
+    CompleteCreateSysmemSurface = ex_CompleteCreateSysmemSurface @2
+    D3DParseUnknownCommand = ex_D3DParseUnknownCommand @3
+    DDGetAttachedSurfaceLcl = ex_DDGetAttachedSurfaceLcl @4
+    DDInternalLock = ex_DDInternalLock @5
+    DDInternalUnlock = ex_DDInternalUnlock @6
+    DSoundHelp = ex_DSoundHelp @7
+    DirectDrawCreate = ex_DirectDrawCreate @8
+    DirectDrawCreateClipper = ex_DirectDrawCreateClipper @9
+    DirectDrawCreateEx = ex_DirectDrawCreateEx @10
+    DirectDrawEnumerateA = ex_DirectDrawEnumerateA @11
+    DirectDrawEnumerateExA = ex_DirectDrawEnumerateExA @12
+    DirectDrawEnumerateExW = ex_DirectDrawEnumerateExW @13
+    DirectDrawEnumerateW = ex_DirectDrawEnumerateW @14
+    DllCanUnloadNow = ex_DllCanUnloadNow PRIVATE
+    DllGetClassObject = ex_DllGetClassObject PRIVATE
+    GetDDSurfaceLocal = ex_GetDDSurfaceLocal @17
+    GetOLEThunkData = ex_GetOLEThunkData @18
+    GetSurfaceFromDC = ex_GetSurfaceFromDC @19
+    RegisterSpecialCase = ex_RegisterSpecialCase @20
+    ReleaseDDThreadLock = ex_ReleaseDDThreadLock @21
+    SetAppCompatData = ex_SetAppCompatData @22

@@ -198,6 +198,55 @@ HRESULT WINAPI ex_DirectDrawCreateClipper(DWORD fl, void **c, void *outer)
     return f ? f(fl, c, outer) : E_FAIL;
 }
 
+/* 残りの関数はそのまま本物へ飛ぶ。D3DIM.DLL・D3DIM700.DLL は DDRAW.dll（＝この DLL）から
+   AcquireDDThreadLock などを読むので、無いと「エントリ ポイントが見つかりません」で止まる */
+static const char *const fw_names[] = {
+    "AcquireDDThreadLock", "CompleteCreateSysmemSurface", "D3DParseUnknownCommand",
+    "DDGetAttachedSurfaceLcl", "DDInternalLock", "DDInternalUnlock", "DSoundHelp",
+    "DirectDrawEnumerateExW", "DirectDrawEnumerateW", "DllCanUnloadNow", "DllGetClassObject",
+    "GetDDSurfaceLocal", "GetOLEThunkData", "GetSurfaceFromDC", "RegisterSpecialCase",
+    "ReleaseDDThreadLock", "SetAppCompatData",
+};
+static FARPROC fw_procs[sizeof(fw_names) / sizeof(fw_names[0])];
+
+static FARPROC __stdcall fw_resolve(int i)
+{
+    FARPROC p = real_proc(fw_names[i]);
+    if (!p) {
+        FatalAppExitA(0, fw_names[i]);
+    }
+    fw_procs[i] = p;
+    return p;
+}
+
+#define FW_STUB(i, name) \
+    __declspec(naked) void ex_##name(void) { __asm { \
+        __asm mov eax, dword ptr [fw_procs + i * 4] \
+        __asm test eax, eax \
+        __asm jnz go##i \
+        __asm push i \
+        __asm call fw_resolve \
+        __asm go##i: \
+        __asm jmp eax } }
+
+FW_STUB(0, AcquireDDThreadLock)
+FW_STUB(1, CompleteCreateSysmemSurface)
+FW_STUB(2, D3DParseUnknownCommand)
+FW_STUB(3, DDGetAttachedSurfaceLcl)
+FW_STUB(4, DDInternalLock)
+FW_STUB(5, DDInternalUnlock)
+FW_STUB(6, DSoundHelp)
+FW_STUB(7, DirectDrawEnumerateExW)
+FW_STUB(8, DirectDrawEnumerateW)
+FW_STUB(9, DllCanUnloadNow)
+FW_STUB(10, DllGetClassObject)
+FW_STUB(11, GetDDSurfaceLocal)
+FW_STUB(12, GetOLEThunkData)
+FW_STUB(13, GetSurfaceFromDC)
+FW_STUB(14, RegisterSpecialCase)
+FW_STUB(15, ReleaseDDThreadLock)
+FW_STUB(16, SetAppCompatData)
+
 /* ---- 設定 ---- */
 static void load_config(void)
 {
@@ -223,6 +272,47 @@ static int check_version(void)
     }
 }
 
+#ifdef MM6JP_TEST
+static LONG CALLBACK test_veh(EXCEPTION_POINTERS *e)
+{
+    static int n;
+    DWORD code = e->ExceptionRecord->ExceptionCode;
+    if ((code == EXCEPTION_ACCESS_VIOLATION || code == 0xC0000409 || code == EXCEPTION_ILLEGAL_INSTRUCTION) && n < 20) {
+        CONTEXT *c = e->ContextRecord;
+        DWORD *sp = (DWORD *)c->Esp;
+        HMODULE m = 0;
+        char mod[MAX_PATH] = "?";
+        n++;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               (LPCSTR)c->Eip, &m))
+            GetModuleFileNameA(m, mod, MAX_PATH);
+        jlog("例外 %08x eip=%08x (%s+%x) addr=%08x/%08x eax=%08x ebx=%08x ecx=%08x edx=%08x esi=%08x edi=%08x ebp=%08x esp=%08x",
+             code, c->Eip, mod, c->Eip - (DWORD)m, (DWORD)e->ExceptionRecord->ExceptionInformation[0],
+             (DWORD)e->ExceptionRecord->ExceptionInformation[1], c->Eax, c->Ebx, c->Ecx, c->Edx, c->Esi, c->Edi, c->Ebp, c->Esp);
+        __try {
+            jlog("  stack %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x",
+                 sp[0], sp[1], sp[2], sp[3], sp[4], sp[5], sp[6], sp[7], sp[8], sp[9], sp[10], sp[11]);
+        } __except (EXCEPTION_EXECUTE_HANDLER) {}
+        __try {   /* スタック上の戻り番地らしいもの（モジュールの中を指す値）を並べる */
+            int i, k = 0;
+            for (i = 0; i < 400 && k < 16; i++) {
+                DWORD v = sp[i];
+                HMODULE mm;
+                char mn[MAX_PATH];
+                if (v < 0x10000) continue;
+                if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                        (LPCSTR)v, &mm)) continue;
+                GetModuleFileNameA(mm, mn, MAX_PATH);
+                jlog("  [esp+%x] %08x %s+%x", i * 4, v, strrchr(mn, '\\') ? strrchr(mn, '\\') + 1 : mn, v - (DWORD)mm);
+                k++;
+            }
+            jlog("  tid=%u main=%p", GetCurrentThreadId(), GetModuleHandleA(0));
+        } __except (EXCEPTION_EXECUTE_HANDLER) {}
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 static void init(void)
 {
     char p[MAX_PATH], *s;
@@ -230,6 +320,9 @@ static void init(void)
     s = strrchr(g_dir, '\\');
     if (s) s[1] = 0;
     load_config();
+#ifdef MM6JP_TEST
+    if (g_cfg_test) AddVectoredExceptionHandler(1, test_veh);
+#endif
 
     real_RegOpenKeyExA = (RegOpenKeyExA_t)iat_hook("ADVAPI32.dll", "RegOpenKeyExA", my_RegOpenKeyExA);
     real_RegCreateKeyExA = (RegCreateKeyExA_t)iat_hook("ADVAPI32.dll", "RegCreateKeyExA", my_RegCreateKeyExA);
@@ -245,9 +338,22 @@ static void init(void)
     if (!jpfont_load(p)) jlog("フォントが読めない: %s", p);
     wsprintfA(p, "%smm6jp_text.bin", g_dir);
     if (!lodtext_load(p)) jlog("訳が読めない: %s", p);
+#ifdef MM6JP_TEST
+    {   /* 切り分け用: [Debug] Off=1 文字処理, 2 品物名など, 4 表の差し替え */
+        char ini[MAX_PATH];
+        int off;
+        wsprintfA(ini, "%smm6jp.ini", g_dir);
+        off = GetPrivateProfileIntA("Debug", "Off", 0, ini);
+        jlog("Off=%d", off);
+        if (!(off & 1)) text_install();
+        if (!(off & 2)) misc_install();
+        if (!(off & 4)) lodtext_install();
+    }
+#else
     text_install();
     misc_install();
     lodtext_install();
+#endif
     if (g_cfg_windowed) ddwin_install();
 #ifdef MM6JP_TEST
     if (g_cfg_test) test_install();
